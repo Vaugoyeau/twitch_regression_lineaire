@@ -29,7 +29,7 @@ Certaines personnes parlent de **modèle de régression linéaire**.
 :::
 
 L'équation est de la forme : $$ Y = aX + b $$ 
-Avec `a : la pente` et `b : l'ordonnée à l'origine ou intecept`  
+Avec `a : la pente (ou coefficient directeur)` et `b : l'ordonnée à l'origine ou intecept`  
   
 ![](img/reg_lin.png)  
   
@@ -43,8 +43,8 @@ La régression de `Y` en fonction de `X` n'est pas la même que la régression d
   
 # Etude des résidus  
 Pour ajuste la droite de régression, la méthode utilisée se base sur les **résidus** : **la méthode des moindres carrées**.  
-L'idée est d'avoir la somme la plus petite possible.    
-  
+La somme du carré des résidus est calculée à chaque itération (création d'une nouvelle équation) et comparée aux autre. 
+L'idée est d'avoir la plus petite somme des résidus possible.    
   
 ::: callout-note  
 ## Les résidus 
@@ -56,27 +56,72 @@ Un résidu est la **différence** entre la **valeur observée** et la **valeur p
 ![](img/residu.png)  
   
 Les résidus doivent suivre une loi normale, vérifiable grâce à un `graphique quantile-quantile` (`QQplot`) ou le test de `Shapiro-Wilk`.  
+Plus d'information sur la loi normale dans [cet article de blog](https://mvaugoyeau.netlify.app/posts/normalite/).  
   
 # Les points extrêmes  
 Il y a deux sortes d'extrêmes :  
   
 - **Extrême sur Y** : ordonnée très différente des autres points d’abscisse proche -> **Point non consistant**  
 ```{r}
-
+anscombe |> 
+  ggplot() +
+  aes(x = x3, y = y3) +
+  geom_point() +
+  theme_classic()
 ```
 
 - **Extrême sur X** : abscisse nettement plus petite ou plus grande que celle des autres points -> **Phénomène de levier**  
 ```{r}
-
+anscombe |> 
+  ggplot() +
+  aes(x = x4, y = y4) +
+  geom_point() +
+  theme_classic()
 ```
   
 ::: callout-warning  
 ## Point influent  
   
-Dans les deux cas, un point est **influant** lorsque la régression pratiquée avec ou sans ce point conduit à des résultats très différents.  
+Dans les deux cas, un point est **influent** lorsque la régression pratiquée avec ou sans ce point conduit à des résultats très différents.  
 :::
   
 ```{r}
+#| layout-ncol: 2
+#| fig-cap: 
+#|  - "Avec point consistant"  
+#|  - "Sans point consitant"
+#|  - "Avec point levier"
+#|  - "Sans point levier"
+
+anscombe |> 
+  ggplot() +
+  aes(x = x3, y = y3) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+anscombe |> 
+  filter(y3 < 10) |> 
+  ggplot() +
+  aes(x = x3, y = y3) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+anscombe |> 
+  ggplot() +
+  aes(x = x4, y = y4) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
+
+anscombe |> 
+  filter(x4 < 10) |> 
+  ggplot() +
+  aes(x = x4, y = y4) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_classic()
 
 ```
   
@@ -84,16 +129,19 @@ Dans les deux cas, un point est **influant** lorsque la régression pratiquée a
 Les données utilisées sont celles du jeu de données [`iris`](https://www.rdocumentation.org/packages/datasets/versions/3.6.2/topics/iris). Les longueurs et largeurs de sépales et pétales ont été mesurées sur 50 iris de 3 espèces, plus d'information sur la page d'aide `help(iris)`.  
 
 ```{r}
-
+summary(iris)
 ```
   
 # Réalisation d'une régression linéaire  
 ## 1^ère^ étape : Réalisation d'un nuage de points   
   
 La visualisation des données est une étape indispensable afin de **vérifier les données** et de **contrôler la linéarité** des données.  
-
+  
 ```{r}
-
+ggplot(iris) +
+  aes(x = Sepal.Length, y = Sepal.Width) +
+  geom_point() +
+  theme_classic()
 ```
   
 ::: callout-warning
@@ -103,18 +151,44 @@ Il ne faut pas réaliser de régression linéaire si graphiquement on ne disting
 :::  
   
 ```{r}
-
+ggplot(iris) +
+  aes(x = Petal.Length, y = Petal.Width) +
+  geom_point() +
+  theme_classic()
 ```
 
 ## 2^ème^ étape : Vérifier les limites d'utilisation de la régression     
 Les données doivent être indépendantes et suivre (ou être approximées par) des lois normales.  
   
+Test de Shapiro-Wilk
 ```{r}
-
+shapiro.test(iris$Petal.Length)
+shapiro.test(iris$Petal.Width)
 ```
+  
+::: callout-note
+Les longueurs et largeurs de pétales ne suivent pas des lois normales.  
+:::
 
+Représentation graphique  
 ```{r}
+iris |> 
+  ggplot() +
+  aes(sample = Petal.Length) +
+  geom_qq() +
+  geom_qq_line() +
+  theme_bw()
 
+iris |> 
+  pivot_longer(
+    cols = - Species
+  ) |> 
+  ggplot() +
+  aes(sample = value) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~ name, scales = "free") +
+  theme_bw()
 ```
   
 :::callout-note  
@@ -126,18 +200,24 @@ Plusieurs packages ont des fonctions qui permettent de réaliser un modèle lin�
 Ici je vais rester sur la fonction `lm()` du package `{stats}` automatiquement chargé dans l'environnement.  
 Cette fonction prend comme premier argument la `formula`, c'est-à-dire la formule de type `y ~ x` et en deuxième argument `data`, le jeu de données utilisé.  
 ```{r}
-
+modele_lineaire_petale <- lm(
+  Petal.Width ~ Petal.Length,
+  data = iris
+)
 ```
 
 Pour accéder aux coefficients, il y a plusieurs solutions :  
 
-- Rappeler le nom du modèle  
-- Utiliser la fonction `summary()` du package `{base}`  
-- Applique la fonction `anova()` du package `{stats}`  
-- Prendre la fonction `Anova()` du package `{car}`  
-
+- Rappeler le nom du modèle : Ne donne pas les statistiques de test    
+- Utiliser la fonction `summary()` du package `{base}` : Le plus complet mais attention s'il y a plusieurs variables explicatives, les coeffcients et statistiques de test appliqués sont de type I.    
+- Applique la fonction `anova()` du package `{stats}` : Permet d'afficher facilement le tableau des coefficients mais type I aussi    
+- Prendre la fonction `Anova()` du package `{car}` : Même chose que précédent mais type II (et même III s'il y a une intéraction)    
+  
 ```{r}
-
+modele_lineaire_petale
+summary(modele_lineaire_petale)
+anova(modele_lineaire_petale)
+car::Anova(modele_lineaire_petale)
 ```
 
 Pour voir la différence entre les deux `anova` il faut ajouter des variables.  
@@ -148,13 +228,20 @@ La sortie `summary()` nous dit que le modèle est significatif (`p-value: < 2.2e
 Le modèle est accepté si les **résidus** suivent une **loi normale**.  
   
 ```{r}
-
+modele_lineaire_petale$residuals |> 
+  shapiro.test()
 ```
   
 Il est aussi bien de visualiser le modèle grâce à la fonction `plot()`.  
 
 ```{r}
-
+#| layout-ncol: 2
+#| fig-cap: 
+#|  - "La courbe rouge doit être la plus proche de la droite en pointillée"
+#|  - "Les points doivent suivre la première diagonale en pointillée"
+#|  - "la courbe rouge doit être la plus plate possible" 
+#|  - "la courbe rouge doit être proche de la droite horizontale en pointillée"
+plot(modele_lineaire_petale)
 ```
 
   
@@ -162,11 +249,45 @@ Il est aussi bien de visualiser le modèle grâce à la fonction `plot()`.
 Le nuage de points avec une droite est la meilleur représentation.  
   
 ```{r}
+ggplot(iris) +
+  aes(x = Petal.Length, y = Petal.Width) +
+  geom_point() +
+  geom_abline(
+    slope = modele_lineaire_petale$coefficients[[2]],
+    intercept = modele_lineaire_petale$coefficients[[1]],
+    color = "red",
+    linewidth = 2
+  ) +
+  geom_smooth(method = "lm") +
+  ggpubr::stat_regline_equation() +
+  theme_classic()
 
 ```
   
   
-
+# En savoir un peu plus sur moi  
+Bonjour, 
+  
+Je suis Marie Vaugoyeau et je suis disponible pour des **missions en freelance** d’**accompagnement à la formation** à R et à l’analyse de données et/ou en **programmation** (reprise de scripts, bonnes pratiques de codage, développement de package).  
+Ayant un **bagage recherche en écologie**, j’ai accompagné plusieurs chercheuses en biologie dans leurs analyses de données mais je suis ouverte à d’autres domaines.  
+  
+Vous pouvez retrouver mes offres [ici](https://marievaugoyeau.notion.site/MStats-Marie-Vaugoyeau-d69b566c83414152ac85eae012c970fb).  
+  
+**En plus de mes missions de consulting je diffuse mes savoirs en R et analyse de données sur plusieurs plateformes :**   
+  
+- J’ai écrit [un **livre** aux éditions ENI](https://www.editions-eni.fr/livre/langage-r-et-statistiques-initiation-a-l-analyse-de-donnees-9782409036934)  
+- Tous les mois je fais [un **live sur Twitch**](https://www.twitch.tv/marievaugoyeau/videos) pour parler d’un package de R, d’une analyse  
+- Je rédige une **newsletter** de manière irrégulière pour parler de mes **inspirations** et transmettre **des trucs et astuces sur R**. Pour s’y inscrire, [c’est par là](https://d1154691.sibforms.com/serve/MUIEAGj4fIubg6D4qHb7BoZSxNhzkV4p2L0I7GHpNopbqPeDS1J0SpOgaTDCavroygrDTCukB0La-8s1nsQw5wCANT5UP64en1GudsGbKhGVlwbvP_bJdAJ0ECF9BOZ1swRKEnKlnWzTHpLjknJvrCXiH_xw4F_go_2kVB0dWWrkJzRoE22BXImtgVOu29gBxx2hjFkINdeW7Cae?). J’ai aussi [un **blog**](https://mvaugoyeau.netlify.app/fr/) sur lequel vous pourrez retrouver une version de cet article.  
+  
+Pour en savoir encore un peu plus sur moi, il y a [LinkedIn](https://www.linkedin.com/in/marie-vaugoyeau-72ab64153/) et pour retrouver [tous ces liens et plus encore, c'est ici](https://linktr.ee/mstats)  
+  
+**N’hésitez pas à me contacter sur [marie.vaugoyeau@gmail.com](mailto:marie.vaugoyeau@gmail.com) !**  
+  
+Bonne journée   
+  
+Marie  
+  
+![](C:/Users\Marie\Dropbox\Mstats\Img\bandeauSignatureGmail.png)
 
 
 

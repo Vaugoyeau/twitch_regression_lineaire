@@ -232,6 +232,9 @@ modele_lineaire_petale$residuals |>
   shapiro.test()
 ```
   
+  
+Les résidus suivent une loi normale (`p-valeur` > 0.05 -> impossible de rejeter l'hypothèse nulle selon laquelle les données suivent une loi normale).  
+  
 Il est aussi bien de visualiser le modèle grâce à la fonction `plot()`.  
 
 ```{r}
@@ -239,14 +242,18 @@ Il est aussi bien de visualiser le modèle grâce à la fonction `plot()`.
 #| fig-cap: 
 #|  - "La courbe rouge doit être la plus proche de la droite en pointillée"
 #|  - "Les points doivent suivre la première diagonale en pointillée"
-#|  - "la courbe rouge doit être la plus plate possible" 
-#|  - "la courbe rouge doit être proche de la droite horizontale en pointillée"
+#|  - "La courbe rouge doit être la plus plate possible" 
+#|  - "La courbe rouge doit être proche de la droite horizontale en pointillée"
 plot(modele_lineaire_petale)
 ```
 
   
 ## 5^ème^ étape : Réalisation d'un graphique résumé  
+  
 Le nuage de points avec une droite est la meilleur représentation.  
+La droite peut-être réalisé grâce à la fonction `geom_abline()` du package `{ggplot2}` et les paramètres du modèle linéaire ajusté (`modele_lineaire_petale`) ou automatiquement avec la fonction `geom_smooth()` du même package en précisant l'argument `method = "lm"`.  
+L'équation est affiché sur le graphique grâce à la fonction `stat_regline_equation()` du package `{ggpubr}`.  
+  
   
 ```{r}
 ggplot(iris) +
